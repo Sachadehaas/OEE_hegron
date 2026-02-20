@@ -9,7 +9,7 @@ st.set_page_config(page_title="Hegron OEE Tool", layout="wide")
 
 # --- ZIJBALK NAVIGATIE ---
 st.sidebar.title("Navigatie")
-pagina = st.sidebar.radio("Kies een optie:", ["OEE data invoeren", "Veilig verwijderen"])
+pagina = st.sidebar.radio("Kies een optie:", ["OEE data invoeren", "Beheer"])
 
 # PAGINA 1: OEE DATA INVOEREN
 if pagina == "OEE data invoeren":
@@ -203,46 +203,64 @@ if pagina == "OEE data invoeren":
     else:
         st.info("Nog geen data in het logboek.")
 
-# PAGINA 2: VEILIG VERWIJDEREN
-elif pagina == "Veilig verwijderen":
-    st.title("🗑️ Foutieve invoer verwijderen")
-    st.markdown("Hier kun je een verkeerd ingevoerde regel definitief verwijderen.")
+import streamlit as st
+import pandas as pd
+import os
+
+# PAGINA: BEHEER (Aanpassen & Verwijderen)
+elif pagina == "Beheer":
+    st.title("🛠️ Data Beheren")
+    st.markdown("Pas regels aan of verwijder ze definitief na invoer van het wachtwoord.")
     st.divider()
 
     if os.path.isfile(DATA_FILE):
         df_beheer = pd.read_csv(DATA_FILE, sep=";")
         
-        col_del_1, col_del_2 = st.columns(2)
-        with col_del_1:
-            unieke_datums = df_beheer['Datum'].unique()
-            unieke_datums = sorted(unieke_datums, reverse=True)
-            gekozen_datum = st.selectbox("1. Kies de datum van de fout:", unieke_datums)
+        # 1. Selectie van de rij
+        col_sel_1, col_sel_2 = st.columns(2)
+        with col_sel_1:
+            unieke_datums = sorted(df_beheer['Datum'].unique(), reverse=True)
+            gekozen_datum = st.selectbox("1. Kies de datum:", unieke_datums)
 
         dag_data = df_beheer[df_beheer['Datum'] == gekozen_datum]
         
-        with col_del_2:
-            if not dag_data.empty:
-                opties = {}
-                for index, row in dag_data.iterrows():
-                    label = f"{row['Machine Soort']} {row['Machine Nummer']} (Leider: {row['Bandleider']})"
-                    opties[label] = index
+        if not dag_data.empty:
+            with col_sel_2:
+                opties = {f"{r['Machine Soort']} {r['Machine Nummer']} ({r['Bandleider']})": i 
+                          for i, r in dag_data.iterrows()}
+                gekozen_label = st.selectbox("2. Kies de specifieke regel:", list(opties.keys()))
+                index_to_edit = opties[gekozen_label]
+
+            # 2. Wachtwoord controle
+            wachtwoord = st.text_input("Voer het wachtwoord in om wijzigingen te maken:", type="password")
+
+            if wachtwoord == "ja":
+                st.success("Toegang verleend.")
                 
-                gekozen_label = st.selectbox("2. Kies welke lijn je wilt verwijderen:", list(opties.keys()))
-                te_verwijderen_index = opties[gekozen_label]
-            else:
-                st.warning("Geen data gevonden op deze datum.")
-                te_verwijderen_index = None
+                # Toon de geselecteerde data in een editor
+                st.write("### Bewerk de gegevens hieronder:")
+                # We maken een tijdelijke DF van 1 rij voor de editor
+                edited_df = st.data_editor(df_beheer.loc[[index_to_edit]], hide_index=True)
 
-        if te_verwijderen_index is not None:
-            st.info("Check hieronder of dit de juiste regel is. Klopt dit?")
-            st.dataframe(df_beheer.loc[[te_verwijderen_index]])
+                col_actie_1, col_actie_2 = st.columns(2)
+                
+                with col_actie_1:
+                    if st.button("💾 Wijzigingen opslaan", use_container_width=True):
+                        df_beheer.loc[index_to_edit] = edited_df.iloc[0]
+                        df_beheer.to_csv(DATA_FILE, sep=";", index=False)
+                        st.success("Gegevens bijgewerkt!")
+                        st.rerun()
 
-            st.write("⚠️ **Pas op: Weg = Weg!**")
-            if st.button("JA, verwijder deze regel definitief"):
-                df_beheer = df_beheer.drop(te_verwijderen_index)
-                df_beheer.to_csv(DATA_FILE, sep=";", index=False)
-                st.success("De regel is succesvol verwijderd!")
-                st.rerun()
-
+                with col_actie_2:
+                    if st.button("🗑️ Regel definitief verwijderen", type="primary", use_container_width=True):
+                        df_beheer = df_beheer.drop(index_to_edit)
+                        df_beheer.to_csv(DATA_FILE, sep=";", index=False)
+                        st.warning("Regel verwijderd.")
+                        st.rerun()
+            
+            elif wachtwoord != "":
+                st.error("Onjuist wachtwoord.")
+        else:
+            st.warning("Geen data gevonden op deze datum.")
     else:
-        st.info("Nog geen data beschikbaar om te verwijderen.")
+        st.info("Nog geen data beschikbaar om te beheren.")
