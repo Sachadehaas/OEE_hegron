@@ -4,7 +4,8 @@ import os
 from datetime import datetime
 
 # --- CONFIGURATIE ---
-DATA_FILE = 'hegron_oee_logboek_v5.csv'
+# --- CONFIGURATIE ---
+DATA_FILE = 'hegron_oee_logboek_v6.csv'  # Verander v5 naar v6
 st.set_page_config(page_title="Hegron OEE Tool", layout="wide")
 
 # --- ZIJBALK NAVIGATIE ---
@@ -155,6 +156,8 @@ if pagina == "OEE data invoeren":
             else:
                 # Alles is goed, we gaan opslaan!
                # Alles goed -> Opslaan
+                # Alles goed -> Opslaan
+                # Alles goed -> Opslaan
                 nieuwe_regel = {
                     "Datum": [datum],
                     "Machine Nummer": [mach_nr],
@@ -163,19 +166,21 @@ if pagina == "OEE data invoeren":
                     "Aantal Mensen": [aantal_mensen],
                     "Product Nummer": [prod_nummer],
                     "Norm Snelheid": [norm_snelheid],
-                    # De OEE percentages
+                    "Totaal Diensttijd": [dienst_tijd],
+                    "Pauze": [pauze],
                     "Beschikbaarheid %": [round(beschikbaarheid_pct, 1)],
                     "Prestatie %": [round(prestatie_pct, 1)],
                     "Kwaliteit %": [round(kwaliteit_pct, 1)],
                     "OEE %": [round(oee_pct, 1)],
-                    # De HARDE data (Aantallen in productie)
                     "Geplande Tijd": [geplande_productietijd],
                     "Werkelijke Draaitijd": [werkelijke_draaitijd],
                     "Theoretische Max Output": [theoretische_max_output],
                     "Totaal Geproduceerd": [totaal_geproduceerd],
-                    "Goede Producten": [goede_producten],   # <-- NIEUW TOEGEVOEGD
-                    "Foute Producten": [foute_producten],   # <-- NIEUW TOEGEVOEGD
-                    # De verliezen
+                    "Goede Producten": [goede_producten],
+                    "Foute Producten": [foute_producten],
+                    "Stilstand Opstart": [stop_opstart],
+                    "Stilstand Ombouw": [stop_ombouw],
+                    "Stilstand Schoonmaak": [stop_schoonmaak],
                     "Stilstand Monteur": [stop_monteur],
                     "Stilstand QC": [stop_qc],
                     "Stilstand Product": [stop_product],
@@ -203,10 +208,6 @@ if pagina == "OEE data invoeren":
     else:
         st.info("Nog geen data in het logboek.")
 
-import streamlit as st
-import pandas as pd
-import os
-
 # PAGINA: BEHEER (Aanpassen & Verwijderen)
 elif pagina == "Beheer":
     st.title("🛠️ Data Beheren")
@@ -214,53 +215,86 @@ elif pagina == "Beheer":
     st.divider()
 
     if os.path.isfile(DATA_FILE):
-        df_beheer = pd.read_csv(DATA_FILE, sep=";")
-        
-        # 1. Selectie van de rij
-        col_sel_1, col_sel_2 = st.columns(2)
-        with col_sel_1:
-            unieke_datums = sorted(df_beheer['Datum'].unique(), reverse=True)
-            gekozen_datum = st.selectbox("1. Kies de datum:", unieke_datums)
-
-        dag_data = df_beheer[df_beheer['Datum'] == gekozen_datum]
-        
-        if not dag_data.empty:
-            with col_sel_2:
-                opties = {f"{r['Machine Soort']} {r['Machine Nummer']} ({r['Bandleider']})": i 
-                          for i, r in dag_data.iterrows()}
-                gekozen_label = st.selectbox("2. Kies de specifieke regel:", list(opties.keys()))
-                index_to_edit = opties[gekozen_label]
-
-            # 2. Wachtwoord controle
-            wachtwoord = st.text_input("Voer het wachtwoord in om wijzigingen te maken:", type="password")
-
-            if wachtwoord == "ja":
-                st.success("Toegang verleend.")
-                
-                # Toon de geselecteerde data in een editor
-                st.write("### Bewerk de gegevens hieronder:")
-                # We maken een tijdelijke DF van 1 rij voor de editor
-                edited_df = st.data_editor(df_beheer.loc[[index_to_edit]], hide_index=True)
-
-                col_actie_1, col_actie_2 = st.columns(2)
-                
-                with col_actie_1:
-                    if st.button("💾 Wijzigingen opslaan", use_container_width=True):
-                        df_beheer.loc[index_to_edit] = edited_df.iloc[0]
-                        df_beheer.to_csv(DATA_FILE, sep=";", index=False)
-                        st.success("Gegevens bijgewerkt!")
-                        st.rerun()
-
-                with col_actie_2:
-                    if st.button("🗑️ Regel definitief verwijderen", type="primary", use_container_width=True):
-                        df_beheer = df_beheer.drop(index_to_edit)
-                        df_beheer.to_csv(DATA_FILE, sep=";", index=False)
-                        st.warning("Regel verwijderd.")
-                        st.rerun()
+        try:
+            df_beheer = pd.read_csv(DATA_FILE, sep=";")
             
-            elif wachtwoord != "":
-                st.error("Onjuist wachtwoord.")
-        else:
-            st.warning("Geen data gevonden op deze datum.")
+            # 1. Selectie van de rij
+            col_sel_1, col_sel_2 = st.columns(2)
+            with col_sel_1:
+                unieke_datums = sorted(df_beheer['Datum'].unique(), reverse=True)
+                gekozen_datum = st.selectbox("1. Kies de datum:", unieke_datums)
+
+            dag_data = df_beheer[df_beheer['Datum'] == gekozen_datum]
+            
+            if not dag_data.empty:
+                with col_sel_2:
+                    opties = {f"{r['Machine Soort']} {r['Machine Nummer']} ({r['Bandleider']})": i 
+                              for i, r in dag_data.iterrows()}
+                    gekozen_label = st.selectbox("2. Kies de specifieke regel:", list(opties.keys()))
+                    index_to_edit = opties[gekozen_label]
+
+                # 2. Wachtwoord controle
+                wachtwoord = st.text_input("Voer het wachtwoord in om wijzigingen te maken:", type="password")
+
+                if wachtwoord == "D0nderd@g18!":
+                    st.success("Toegang verleend.")
+                    
+                    st.write("### Bewerk de gegevens in de tabel:")
+                    # We maken een tijdelijke DF van 1 rij voor de editor
+                    # Let op: we zorgen dat alle kolommen zichtbaar zijn
+                    edited_df = st.data_editor(df_beheer.loc[[index_to_edit]], hide_index=True)
+
+                    col_actie_1, col_actie_2 = st.columns(2)
+                    
+                    with col_actie_1:
+                        if st.button("💾 Wijzigingen opslaan", use_container_width=True):
+                            r = edited_df.iloc[0]
+                            
+                            # --- HERBEREKENING BIJ OPSLAAN ---
+                            # Tijden
+                            gepl_stilstand = r['Stilstand Opstart'] + r['Stilstand Ombouw'] + r['Stilstand Schoonmaak']
+                            gepl_tijd = r['Totaal Diensttijd'] - r['Pauze'] - gepl_stilstand
+                            ong_stilstand = r['Stilstand Monteur'] + r['Stilstand QC'] + r['Stilstand Product'] + r['Stilstand Divers']
+                            werk_tijd = gepl_tijd - ong_stilstand
+                            
+                            # OEE Componenten
+                            bes_pct = (werk_tijd / gepl_tijd * 100) if gepl_tijd > 0 else 0
+                            max_out = werk_tijd * r['Norm Snelheid']
+                            pre_pct = (r['Totaal Geproduceerd'] / max_out * 100) if max_out > 0 else 0
+                            goede_p = r['Totaal Geproduceerd'] - r['Foute Producten']
+                            kwa_pct = (goede_p / r['Totaal Geproduceerd'] * 100) if r['Totaal Geproduceerd'] > 0 else 0
+                            
+                            tot_oee = (bes_pct/100) * (pre_pct/100) * (kwa_pct/100) * 100
+
+                            # Update originele dataframe met handmatige EN berekende data
+                            df_beheer.loc[index_to_edit] = r
+                            df_beheer.at[index_to_edit, 'Geplande Tijd'] = gepl_tijd
+                            df_beheer.at[index_to_edit, 'Werkelijke Draaitijd'] = werk_tijd
+                            df_beheer.at[index_to_edit, 'Theoretische Max Output'] = max_out
+                            df_beheer.at[index_to_edit, 'Goede Producten'] = goede_p
+                            df_beheer.at[index_to_edit, 'Beschikbaarheid %'] = round(bes_pct, 1)
+                            df_beheer.at[index_to_edit, 'Prestatie %'] = round(pre_pct, 1)
+                            df_beheer.at[index_to_edit, 'Kwaliteit %'] = round(kwa_pct, 1)
+                            df_beheer.at[index_to_edit, 'OEE %'] = round(tot_oee, 1)
+                            
+                            df_beheer.to_csv(DATA_FILE, sep=";", index=False)
+                            st.success("Gegevens bijgewerkt en herberekend!")
+                            st.rerun()
+
+                    with col_actie_2:
+                        if st.button("🗑️ Regel definitief verwijderen", type="primary", use_container_width=True):
+                            df_beheer = df_beheer.drop(index_to_edit)
+                            df_beheer.to_csv(DATA_FILE, sep=";", index=False)
+                            st.warning("Regel verwijderd.")
+                            st.rerun()
+                
+                elif wachtwoord != "":
+                    st.error("Onjuist wachtwoord.")
+            else:
+                st.warning("Geen data gevonden op deze datum.")
+
+        except Exception as e:
+            st.error(f"Er is een fout opgetreden bij het lezen van het bestand: {e}")
+            st.info("Tip: Verwijder het oude CSV-bestand en begin opnieuw met de nieuwe kolommen.")
     else:
         st.info("Nog geen data beschikbaar om te beheren.")
