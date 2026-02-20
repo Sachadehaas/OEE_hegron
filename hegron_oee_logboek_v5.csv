@@ -1,0 +1,7 @@
+Datum;Machine Nummer;Machine Soort;Bandleider;Aantal Mensen;Product Nummer;Norm Snelheid;Beschikbaarheid %;Prestatie %;Kwaliteit %;OEE %;Geplande Tijd;Werkelijke Draaitijd;Theoretische Max Output;Totaal Geproduceerd;Goede Producten;Foute Producten;Stilstand Monteur;Stilstand QC;Stilstand Product;Stilstand Divers;Opmerking
+2026-02-18;24;Parfum;?;8;1120573.0;30;88.4;79.8;100.0;70.6;475;420;12600;10054;10054;0;15;20;20;0;
+2026-02-18;25;Parfum;Sasi;6;1119963.0;32;95.8;62.6;100.0;60.0;475;455;14560;9114;9114;0;20;0;0;0;Formulier slecht ingevuld
+2026-02-18;2;Pot;Shirley;6;17870134.0;16;43.5;81.8;100.0;35.6;345;150;2400;1964;1964;0;165;20;10;0;
+2026-02-18;11;Pot;Oor;7;80522.0;30;86.7;61.2;100.0;53.1;475;412;12360;7564;7564;0;0;55;8;0;Etiket machine niet goed. 
+2026-02-18;29;Parfum;Marla;4;106827.0;43;100.0;106.7;100.0;106.7;23;23;989;1055;1055;0;0;0;0;0;Hierna volgende order
+2026-02-18;29;Parfum;Marla;4;115260.0;43;80.1;86.0;100.0;68.9;427;342;14706;12650;12650;0;35;30;20;0;
