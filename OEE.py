@@ -4,7 +4,6 @@ import os
 from datetime import datetime
 
 # --- CONFIGURATIE ---
-# --- CONFIGURATIE ---
 DATA_FILE = 'hegron_oee_logboek_v6.csv'  # Verander v5 naar v6
 st.set_page_config(page_title="Hegron OEE Tool", layout="wide")
 
@@ -47,22 +46,19 @@ if pagina == "OEE data invoeren":
     st.divider()
 
     # --- HET VASTE FORMULIER ---
-    with st.form("oee_formulier", clear_on_submit=True):
+    with st.form("oee_formulier", clear_on_submit=False): # clear_on_submit op False gezet zodat data niet verdwijnt na berekenen
 
         # --- SECTIE 2: PRODUCTIE & TIJD ---
         st.subheader("2. Productie & Tijd")
         c1, c2, c3 = st.columns(3)
         with c1:
-            # Product nummer is optioneel (mag leeg zijn)
             prod_nummer = st.text_input("Product Nummer (Optioneel)")
-            # Norm Snelheid is verplicht (> 0)
-            norm_snelheid = st.number_input("Norm Snelheid (stuks/minuut) *", min_value=0)
+            norm_snelheid = st.number_input("Norm Snelheid (stuks/minuut) *", min_value=0.0)
         with c2:
             dienst_tijd = st.number_input("Totale Diensttijd (minuten) *", value=525)
             pauze = st.number_input("Geplande Pauze (minuten) *", value=45)
         with c3:
             totaal_geproduceerd = st.number_input("Totaal Aantal Stuks Geproduceerd *", min_value=0)
-            # Aantal Fout is optioneel (mag 0 zijn)
             foute_producten = st.number_input("Aantal Foute Stuks (Afkeur)", min_value=0)
             
         st.divider()
@@ -74,7 +70,6 @@ if pagina == "OEE data invoeren":
         
         with sc1:
             st.markdown("**🔹 Geplande Stilstand**")
-            # Opstarten is verplicht met standaardwaarde 5
             stop_opstart = st.number_input("Opstarten/Afsluiten *", min_value=0, value=5)
             stop_ombouw = st.number_input("Ombouw", min_value=0)
             stop_schoonmaak = st.number_input("Schoonmaken productwisseling", min_value=0)
@@ -131,71 +126,72 @@ if pagina == "OEE data invoeren":
         m3.metric("Kwaliteit", f"{kwaliteit_pct:.1f}%")
         m4.metric("OEE Totaal", f"{oee_pct:.1f}%")
 
-        # Opslaan knop
-        submitted = st.form_submit_button("💾 Opslaan in Logboek")
+        # Bereken knop (in plaats van opslaan)
+        st.form_submit_button("🧮 Bereken OEE Waarden (Tussentijds)")
 
-        if submitted:
-            # --- VALIDATIE (VERPLICHTE VELDEN CHECK) ---
-            fouten = []
+    # --- DEFINITIEF OPSLAAN ---
+    st.divider()
+    st.subheader("5. Definitief Opslaan")
+    st.info("Controleer de berekende OEE waarden hierboven. Klopt alles? Druk dan op opslaan.")
+    
+    if st.button("💾 Gegevens definitief opslaan in Logboek", type="primary", use_container_width=True):
+        # --- VALIDATIE (VERPLICHTE VELDEN CHECK) ---
+        fouten = []
+        
+        if not naam_leider:
+            fouten.append("Naam Bandleidster is verplicht.")
+        if norm_snelheid <= 0:
+            fouten.append("Norm Snelheid moet groter zijn dan 0.")
+        if dienst_tijd <= 0:
+            fouten.append("Totale Diensttijd moet ingevuld zijn.")
+        if aantal_mensen <= 0:
+            fouten.append("Aantal mensen moet ingevuld zijn.")
+
+        if fouten:
+            for fout in fouten:
+                st.error(f"⚠️ {fout}")
+            st.warning("De gegevens zijn NIET opgeslagen. Corrigeer de fouten hierboven.")
+        else:
+            # Alles is goed, we gaan opslaan!
+            nieuwe_regel = {
+                "Datum": [datum],
+                "Machine Nummer": [mach_nr],
+                "Machine Soort": [mach_type],
+                "Bandleider": [naam_leider],
+                "Aantal Mensen": [aantal_mensen],
+                "Product Nummer": [prod_nummer],
+                "Norm Snelheid": [norm_snelheid],
+                "Totaal Diensttijd": [dienst_tijd],
+                "Pauze": [pauze],
+                "Beschikbaarheid %": [round(beschikbaarheid_pct, 1)],
+                "Prestatie %": [round(prestatie_pct, 1)],
+                "Kwaliteit %": [round(kwaliteit_pct, 1)],
+                "OEE %": [round(oee_pct, 1)],
+                "Geplande Tijd": [geplande_productietijd],
+                "Werkelijke Draaitijd": [werkelijke_draaitijd],
+                "Theoretische Max Output": [theoretische_max_output],
+                "Totaal Geproduceerd": [totaal_geproduceerd],
+                "Goede Producten": [goede_producten],
+                "Foute Producten": [foute_producten],
+                "Stilstand Opstart": [stop_opstart],
+                "Stilstand Ombouw": [stop_ombouw],
+                "Stilstand Schoonmaak": [stop_schoonmaak],
+                "Stilstand Monteur": [stop_monteur],
+                "Stilstand QC": [stop_qc],
+                "Stilstand Product": [stop_product],
+                "Stilstand Divers": [stop_divers],
+                "Opmerking": [opmerking_dag]
+            }
             
-            if not naam_leider:
-                fouten.append("Naam Bandleidster is verplicht.")
-            if norm_snelheid <= 0:
-                fouten.append("Norm Snelheid moet groter zijn dan 0.")
-            if dienst_tijd <= 0:
-                fouten.append("Totale Diensttijd moet ingevuld zijn.")
-            # Let op: Totaal geproduceerd mag 0 zijn (als de machine hele dag stuk was), 
-            # maar Aantal Mensen moet > 0 zijn.
-            if aantal_mensen <= 0:
-                fouten.append("Aantal mensen moet ingevuld zijn.")
-
-            if fouten:
-                for fout in fouten:
-                    st.error(f"⚠️ {fout}")
-                st.warning("De gegevens zijn NIET opgeslagen. Corrigeer de fouten hierboven.")
+            df_save = pd.DataFrame(nieuwe_regel)
+            
+            if not os.path.isfile(DATA_FILE):
+                df_save.to_csv(DATA_FILE, index=False, sep=";")
             else:
-                # Alles is goed, we gaan opslaan!
-               # Alles goed -> Opslaan
-                # Alles goed -> Opslaan
-                # Alles goed -> Opslaan
-                nieuwe_regel = {
-                    "Datum": [datum],
-                    "Machine Nummer": [mach_nr],
-                    "Machine Soort": [mach_type],
-                    "Bandleider": [naam_leider],
-                    "Aantal Mensen": [aantal_mensen],
-                    "Product Nummer": [prod_nummer],
-                    "Norm Snelheid": [norm_snelheid],
-                    "Totaal Diensttijd": [dienst_tijd],
-                    "Pauze": [pauze],
-                    "Beschikbaarheid %": [round(beschikbaarheid_pct, 1)],
-                    "Prestatie %": [round(prestatie_pct, 1)],
-                    "Kwaliteit %": [round(kwaliteit_pct, 1)],
-                    "OEE %": [round(oee_pct, 1)],
-                    "Geplande Tijd": [geplande_productietijd],
-                    "Werkelijke Draaitijd": [werkelijke_draaitijd],
-                    "Theoretische Max Output": [theoretische_max_output],
-                    "Totaal Geproduceerd": [totaal_geproduceerd],
-                    "Goede Producten": [goede_producten],
-                    "Foute Producten": [foute_producten],
-                    "Stilstand Opstart": [stop_opstart],
-                    "Stilstand Ombouw": [stop_ombouw],
-                    "Stilstand Schoonmaak": [stop_schoonmaak],
-                    "Stilstand Monteur": [stop_monteur],
-                    "Stilstand QC": [stop_qc],
-                    "Stilstand Product": [stop_product],
-                    "Stilstand Divers": [stop_divers],
-                    "Opmerking": [opmerking_dag]
-                }
+                df_save.to_csv(DATA_FILE, mode='a', header=False, index=False, sep=";")
                 
-                df_save = pd.DataFrame(nieuwe_regel)
-                
-                if not os.path.isfile(DATA_FILE):
-                    df_save.to_csv(DATA_FILE, index=False, sep=";")
-                else:
-                    df_save.to_csv(DATA_FILE, mode='a', header=False, index=False, sep=";")
-                    
-                st.success(f"✅ Gegevens voor {mach_type} lijn {mach_nr} succesvol opgeslagen!")
+            st.success(f"✅ Gegevens voor {mach_type} lijn {mach_nr} succesvol opgeslagen!")
+            st.rerun()
 
     # --- SCROLLBARE TABEL MET HISTORIE ---
     st.divider()
